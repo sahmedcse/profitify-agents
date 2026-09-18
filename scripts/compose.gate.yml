@@ -1,0 +1,21 @@
+# Overlay for profitify-backend/docker-compose.yml, used only by scripts/gate.sh.
+#
+# Two overrides are mandatory, for reasons that are easy to get wrong:
+#
+#  1. container_name is hardcoded to "profitify-db" in the base file and is NOT namespaced
+#     by `docker compose -p`. Without this override the gate collides with the developer's
+#     long-running profitify-db container.
+#
+#  2. `ports` MERGES BY APPEND in Compose. Without the `!override` tag the base "5432:5432"
+#     survives alongside the ephemeral port and the collision happens anyway.
+#     `!override` requires Compose >= 2.24.
+#
+# The project name (-p) namespaces the volume, so each run gets a virgin database and
+# `down -v` destroys it. The developer's data is never touched.
+services:
+  db:
+    container_name: ${GATE_PROJECT}-db
+    ports: !override
+      - "${GATE_DB_PORT}:5432"
+  migrate:
+    container_name: ${GATE_PROJECT}-migrate
