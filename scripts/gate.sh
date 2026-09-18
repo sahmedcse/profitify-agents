@@ -118,7 +118,7 @@ backend_db_and_integration() {
 
   local attempt
   for attempt in 1 2; do
-    GATE_PROJECT="pfgate-$(echo "$RUN_ID" | tr 'A-Z' 'a-z')-backend"
+    GATE_PROJECT="pfgate-$(echo "$RUN_ID" | tr '[:upper:]' '[:lower:]')-backend"
     GATE_DB_PORT=$("$ROOT/scripts/freeport.sh")
     export GATE_PROJECT GATE_DB_PORT
     COMPOSE=(docker compose -p "$GATE_PROJECT"
