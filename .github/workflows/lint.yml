@@ -1,0 +1,45 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    name: Shell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Runs at shellcheck's default severity, NOT --severity=warning. The check that
+      # matters most here is SC2153 (misspelled variable, e.g. $INFRA_SENTINAL vs
+      # $INFRA_SENTINEL) and it is only "info" level — filtering to warnings would
+      # silently drop the exact bug class this job exists to catch. Bash treats a
+      # misspelled variable as empty, so nothing else notices.
+      #
+      # Only two codes are excluded, both genuine false positives here:
+      #   SC2329 — "function never invoked": helpers are called indirectly as `step <name> <fn>`
+      #   SC2016 — "expressions don't expand in single quotes": intentional, those are grep patterns
+      - name: shellcheck
+        run: shellcheck --exclude=SC2329,SC2016 scripts/*.sh .claude/hooks/*.sh
+
+      - name: bash syntax
+        run: |
+          for f in scripts/*.sh .claude/hooks/*.sh; do
+            bash -n "$f"
+          done
+
+  json:
+    name: JSON
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A stray trailing comma here silently voids the whole permission allowlist.
+      - name: validate settings.json
+        run: jq -e . .claude/settings.json > /dev/null
