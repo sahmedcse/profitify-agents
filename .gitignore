@@ -9,3 +9,7 @@
 /.runs/
 
 .DS_Store
+
+# Local, machine-specific: absolute paths differ per checkout.
+# Copy .claude/example-settings.json and rewrite the paths.
+.claude/settings.json

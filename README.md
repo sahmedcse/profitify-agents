@@ -66,9 +66,18 @@ Profitify/
 └── profitify-ops/
 ```
 
-Paths in `.claude/settings.json` are absolute because permission rules match commands literally;
-adjust them for your own checkout. Requires `gh`, `jq`, Docker, and the toolchains of whichever
-repos you target.
+Create your local settings from the example — permission rules match commands **literally**, so
+the paths must be absolute and must match your own checkout:
+
+```bash
+sed "s|/ABSOLUTE/PATH/TO/Profitify|$PWD|g" \
+  .claude/example-settings.json > .claude/settings.json
+```
+
+`.claude/settings.json` is gitignored for that reason: it is machine-specific. Edit
+`example-settings.json` when you change a permission rule, and regenerate.
+
+Requires `gh`, `jq`, Docker, and the toolchains of whichever repos you target.
 
 ## License
 
