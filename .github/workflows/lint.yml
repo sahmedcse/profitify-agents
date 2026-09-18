@@ -22,11 +22,18 @@ jobs:
       # silently drop the exact bug class this job exists to catch. Bash treats a
       # misspelled variable as empty, so nothing else notices.
       #
-      # Only two codes are excluded, both genuine false positives here:
+      # Excluded codes, all genuine false positives here:
       #   SC2329 — "function never invoked": helpers are called indirectly as `step <name> <fn>`
+      #   SC2317 — same false positive under the older shellcheck the runner image ships
       #   SC2016 — "expressions don't expand in single quotes": intentional, those are grep patterns
+      #
+      # Pinned via the official image rather than the runner's preinstalled shellcheck, which is
+      # older and renames diagnostics between versions — the first run of this workflow failed
+      # for exactly that reason. Pinning keeps a local run and CI byte-identical.
       - name: shellcheck
-        run: shellcheck --exclude=SC2329,SC2016 scripts/*.sh .claude/hooks/*.sh
+        run: |
+          docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.11.0 \
+            --exclude=SC2329,SC2317,SC2016 scripts/*.sh .claude/hooks/*.sh
 
       - name: bash syntax
         run: |
