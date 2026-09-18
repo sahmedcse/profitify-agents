@@ -1,0 +1,11 @@
+# Product repos — each is its own git repository, checked out alongside this one.
+/profitify-backend/
+/profitify-web/
+/profitify-ops/
+/profitify-backend-services/
+
+# Per-run scratch: worktrees and the run audit trail.
+/.worktrees/
+/.runs/
+
+.DS_Store
