@@ -20,7 +20,7 @@ cat <<EOF
 
     $WT
 
-This is a git worktree on branch feature/$(echo "$RUN_ID" | sed 's/^[0-9]*-[0-9]*-//').
+This is a git worktree on branch feature/${RUN_ID#*-*-}.
 Everything you write goes here. You MUST NOT touch $ROOT/profitify-$REPO or any sibling
 checkout — those hold the user's uncommitted work and are denied at the permission layer.
 
