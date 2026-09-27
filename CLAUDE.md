@@ -3,7 +3,7 @@
 Control plane for the Profitify project. This repo holds agent definitions, the `/feature`
 orchestration command, and the verification scripts that gate it. It contains **no product code**.
 
-The four product repos are checked out as sibling directories and are gitignored here. Each has its
+The three product repos are checked out as sibling directories and are gitignored here. Each has its
 own `CLAUDE.md` with repo-local conventions — read it before working in that repo.
 
 ## Repo map
@@ -13,7 +13,13 @@ own `CLAUDE.md` with repo-local conventions — read it before working in that r
 | `profitify-backend/` | Go 1.25, Chi, pgx/v5, TimescaleDB, 8 arm64 Lambdas | Pushes 8 ECR images, `aws lambda update-function-code` on all 8 `prod-*` functions |
 | `profitify-web/` | Next.js 16, React 19, TS strict, Tailwind v4, TanStack Query, **pnpm** | `s3 sync --delete` + full CloudFront invalidation. **No `paths-ignore`** — even a docs-only merge redeploys |
 | `profitify-ops/` | AWS CDK, TypeScript, **npm** | Deploys every CDK stack with no approval prompt |
-| `profitify-backend-services/` | Go, Polygon.io, DynamoDB | **Dormant.** Last commit 2025-09-06, superseded by `profitify-backend`, referenced by nothing. Out of scope. |
+
+`profitify-backend-services/` used to sit alongside these. It was Go + Polygon.io + DynamoDB, went
+dormant after 2025-09-06, was superseded by `profitify-backend`, and was **removed on 2026-09-27**.
+Its GitHub remote no longer exists, so the only copy of its 17 commits is a local `git bundle`. The
+`/feature` guardrails still name it explicitly — `feature.md` rejects it in `.repos` and
+`feature-architect.md` is told never to plan against it — and those stay, so a future architect
+cannot reinvent a repo that is not there.
 
 **Merging any PR is a production deploy.** PRs open ready for review, but `gh pr merge` is denied
 to agents: the merge is always a human decision.
