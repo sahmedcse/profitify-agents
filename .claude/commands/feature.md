@@ -139,15 +139,36 @@ Interpret the exit code exactly:
 
 If any repo failed, set `active` to just those repos and go back to 4a.
 
-### 4d. Review — in parallel
+### 4d. Review — two reviewers per repo, in parallel
 
-Only when every active repo's gate passed. Launch `change-reviewer` per repo (single message),
-telling each its repo, worktree, iteration, and output path `$RUN/review/<repo>.iter<N>.json`.
+Only when every active repo's gate passed. For each repo launch **both** reviewers — send every agent
+for every repo in a **single message**:
 
-Validate each file: `jq -e '.schema == "profitify.review.v1"'`. On failure, re-invoke that reviewer
-**once** saying its previous output was not valid `profitify.review.v1`. If it fails again, write a
-synthetic blocking finding ("reviewer produced unparseable output") and escalate to the user —
-**never** treat an unparseable review as an approval.
+- `spec-reviewer` → `$RUN/review/<repo>.iter<N>.spec.json`
+- `quality-reviewer` → `$RUN/review/<repo>.iter<N>.quality.json`
+
+Tell each its repo, worktree, iteration, and its own output path. They are independent: the spec
+reviewer owns the six blocking criteria, the quality reviewer owns everything else and cannot send
+work back around the loop.
+
+Then merge, per repo:
+
+```
+$R/scripts/merge-review.sh <RUN_ID> <repo> <iter>
+```
+
+That writes the canonical `$RUN/review/<repo>.iter<N>.json` which 4e, `brief.sh` and `pr-body.sh`
+read. It assigns severities and ids, enforces the cap of 5 blocking findings by demoting the overflow
+to advisory, promotes any `escalate: true` quality finding to blocking, and derives `verdict` from the
+final count. Do not second-guess it: the cap and the verdict are its decisions, not yours.
+
+**A non-zero exit means the spec review was missing, unparseable, or carried a finding with no
+`criterion`.** Re-invoke that spec reviewer **once**, saying exactly which of those it was. If it
+fails again, write a synthetic blocking finding ("spec reviewer produced unparseable output") and
+escalate to the user — **never** treat an unparseable review as an approval.
+
+A missing or unparseable **quality** review does not fail the merge. It lands as a visible advisory
+placeholder, because a reviewer that cannot block is not worth stopping a run for.
 
 ### 4e. Route
 
