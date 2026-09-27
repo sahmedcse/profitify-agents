@@ -58,10 +58,24 @@ If validation fails, send it back once with the specific problem.
 
 # Step 2 — Approval gate (the one place you stop)
 
-Show the user: the affected repos and why, the contract in plain language, the merge order with its
-reasoning, and the biggest risk. Then use **AskUserQuestion**: *approve* / *revise* / *cancel*.
+First render the plan as a page and open it — a plan is dense, tabular and full of tradeoffs, and
+the terminal is the worst renderer available for it:
 
-- **revise** → pass their notes back to the architect, re-render, ask again.
+```
+$R/scripts/plan-html.sh <RUN_ID> --open
+```
+
+It writes `$RUN/plan.html` and opens it in the browser. **Exit 3 means pandoc is not installed** —
+that is not a failure, fall back to the terminal-only gate below and mention `brew install pandoc`
+once. The page is a local file and is never uploaded; a plan names route paths, table names and ECR
+tags, so none of it leaves the machine.
+
+Then in the terminal keep it short, because the page carries the detail: the affected repos, the
+merge order, the single biggest risk, and anything the architect said it was **unsure** about. Point
+at the page for the rest. Then use **AskUserQuestion**: *approve* / *revise* / *cancel*.
+
+- **revise** → pass their notes back to the architect, then re-run `plan-html.sh` so the page
+  matches the revised plan, and ask again. A stale page is worse than no page.
 - **cancel** → set `status: "cancelled"`, stop.
 - **approve** → set `planApproved: true`, `phase: "implement"`, and seed `.repos` with one entry per
   affected repo: `{path, iteration: 0, gate: null, review: null, pr: null, status: "in_progress"}`.
