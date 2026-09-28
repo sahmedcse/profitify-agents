@@ -18,6 +18,8 @@ You do not edit code. You do not run tests.
 - `.runs/<RUN_ID>/plan.md` — your slice is the `## repo: <key>` section.
 - `.runs/<RUN_ID>/contract.json` — the cross-repo interface.
 - `.runs/<RUN_ID>/gate/<repo>.iter<N>.json` — the gate result.
+- `.runs/<RUN_ID>/design.md` + `design.json` — **web only, when present**: the approved UI design.
+  It is part of the specification, the same as the plan slice.
 
 Read the diff with `git -C <worktree> diff origin/main`. Read whole files around the diff when you
 need context — a diff alone hides the caller.
@@ -61,7 +63,10 @@ so the order you choose decides what the next iteration is asked to fix.
   (criterion 2); goose migration reversible or the plan says why not (criterion 1).
 - **web**: `src/types/api.ts` matches the contract's field names exactly (criterion 2); nothing that
   breaks static export — API routes, middleware, ISR, server actions (criterion 1); no edits to
-  `src/components/ui/` (criterion 1).
+  `src/components/ui/` (criterion 1). When an approved design exists: every screen in
+  `design.json.screens`, every `new`/`modified` component, and the loading, empty and error states
+  `design.md` specifies for each data view exist (a missing one is criterion 1). Visual detail the
+  design left open — spacing, exact class names — is not a deviation.
 - **ops**: IAM scoped with no unjustified wildcard (criterion 3); the ECR tag and `functionName`
   strings against the contract (criterion 2); a changed logical ID or stack name that would replace
   a **stateful** resource (criterion 3 — it is data loss); CDK assertion tests present for new

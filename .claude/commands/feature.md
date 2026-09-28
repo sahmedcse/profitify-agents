@@ -3,7 +3,8 @@ description: Plan, implement, review and open PRs for a feature across the Profi
 argument-hint: "<feature description>" | <existing run-id to resume>
 ---
 
-Orchestrate a feature end to end: architect → approval → implement → gate → review → PRs.
+Orchestrate a feature end to end: designer → design approval (UI only) → architect → plan approval
+→ implement → gate → review → PRs.
 
 Input: `$ARGUMENTS`
 
@@ -38,25 +39,77 @@ Otherwise start a new run:
 - Create `$RUN/` and write `run.json`:
 
 ```json
-{ "run_id": "...", "slug": "...", "branch": "feature/<slug>", "phase": "plan",
+{ "run_id": "...", "slug": "...", "branch": "feature/<slug>", "phase": "design",
+  "designApproved": null,
   "max_iterations": 3, "max_impl_calls": 9, "impl_calls_used": 0,
   "repos": {}, "status": "running" }
 ```
 
-# Step 1 — Architect
+`.phase` maps to steps as follows: `design` → Step 1 (or Step 2 if `$RUN/design.json` already
+exists and `designApproved` is still `null`), `plan` → Step 3, `implement` → Step 5.
+
+# Step 1 — Designer
+
+Launch the `ui-designer` subagent **for every run**. It triages the feature itself, so do not
+decide on its behalf whether the feature has UI. Give it the feature description, the RUN_ID, and
+the three output paths (`$RUN/design.json`, `$RUN/design.md`, `$RUN/mockup.html`). It is read-only
+and will not touch any repo.
+
+When it returns, validate:
+
+- `jq -e '.schema == "profitify.design.v1" and (.ui_required | type == "boolean")' $RUN/design.json`
+- when `.ui_required` is `true`: `design.md` and `mockup.html` both exist and are non-empty, and
+  `.screens` is non-empty
+
+If validation fails, send it back once with the specific problem.
+
+Then route on the file, not on the designer's prose:
+
+- `jq -r '.ui_required' $RUN/design.json` is `false` → print one line,
+  `designer: no UI — <.reason>`, set `phase: "plan"`, and go to Step 3. There is no design gate.
+- `true` → Step 2.
+
+# Step 2 — Design gate (UI features only)
+
+Render the design as a page and open it:
+
+```
+$R/scripts/plan-html.sh <RUN_ID> --open --doc design
+```
+
+It writes `$RUN/design.html` (the spec, linking to the mockup) and opens it. **Exit 3 means pandoc
+is not installed.** The script has then opened `mockup.html` directly instead, so this is not a
+failure: mention `brew install pandoc` once and carry on. Both files are local and are never
+uploaded.
+
+In the terminal keep it short: the screens, which components are new and which are reused, any data
+the designer says does not exist yet, and anything it was **unsure** about. Then use
+**AskUserQuestion**: *approve* / *revise* / *cancel*.
+
+- **revise** → pass their notes back to the designer, then re-run `plan-html.sh --doc design` so the
+  page matches, and ask again.
+- **cancel** → set `status: "cancelled"`, stop.
+- **approve** → set `designApproved: true`, `phase: "plan"`.
+
+The design is approved before the architect runs, so a revised design never throws away a plan.
+
+# Step 3 — Architect
 
 Launch the `feature-architect` subagent. Give it the feature description, the RUN_ID, and the two
-output paths (`$RUN/plan.md`, `$RUN/contract.json`). It is read-only and will not touch any repo.
+output paths (`$RUN/plan.md`, `$RUN/contract.json`). When `design.json` has `ui_required: true`,
+also give it `$RUN/design.md` and `$RUN/design.json` and say the design is **approved**, so it
+plans against the design rather than re-deciding it. It is read-only and will not touch any repo.
 
 When it returns, validate:
 
 - `jq -e '.schema == "profitify.contract.v1"' $RUN/contract.json`
 - every entry in `.repos` is one of `backend`, `web`, `ops` — **never** `backend-services`
 - `.merge_order` covers exactly the same set as `.repos`
+- if `design.json` has `ui_required: true`, `.repos` contains `web`
 
 If validation fails, send it back once with the specific problem.
 
-# Step 2 — Approval gate (the one place you stop)
+# Step 4 — Plan approval gate
 
 First render the plan as a page and open it — a plan is dense, tabular and full of tradeoffs, and
 the terminal is the worst renderer available for it:
@@ -80,9 +133,13 @@ at the page for the rest. Then use **AskUserQuestion**: *approve* / *revise* / *
 - **approve** → set `planApproved: true`, `phase: "implement"`, and seed `.repos` with one entry per
   affected repo: `{path, iteration: 0, gate: null, review: null, pr: null, status: "in_progress"}`.
 
+A **revise** here goes to the architect only. If the notes are really about the UI, say so and ask
+whether to reopen the design gate (back to Step 2, then re-run the architect) rather than letting
+the architect quietly change an approved design.
+
 **Nothing is written to any repo before approval.**
 
-# Step 3 — Worktrees
+# Step 5 — Worktrees
 
 One call, all repos, so a late collision cannot leave a half-created run:
 
@@ -98,18 +155,18 @@ for `web`, clone `node_modules` with `cp -c -R` from the main checkout and run
 clone only when `package-lock.json` is unchanged, otherwise `npm ci` (which deletes `node_modules`
 anyway).
 
-# Step 4 — The loop
+# Step 6 — The loop
 
 `active` = the affected repos. Repeat until `active` is empty:
 
-### 4a. Advance the counter
+### 6a. Advance the counter
 
 For each repo in `active`: `$R/scripts/iter.sh next <RUN_ID> <repo>`
 
 **A non-zero exit means that repo is terminally blocked.** Drop it from `active`, mark
 `status: "blocked"`, and do not create its PR. Do not retry it and do not reason your way past this.
 
-### 4b. Implement — in parallel
+### 6b. Implement — in parallel
 
 For each active repo, build the brief with `$R/scripts/brief.sh <RUN_ID> <repo> <iter>` and launch
 the matching subagent — `backend-implementer`, `web-implementer`, `infra-implementer` — passing the
@@ -117,7 +174,7 @@ brief as the prompt. **Send all of them in a single message** so they run concur
 
 Record each agent's `files_changed` into `$RUN/impl/<repo>.iter<N>.json`.
 
-### 4c. Gate — serially, backend first
+### 6c. Gate — serially, backend first
 
 ```
 $R/scripts/gate.sh <repo> $R/.worktrees/<RUN_ID>/<repo> <RUN_ID> <iter>
@@ -137,9 +194,9 @@ Interpret the exit code exactly:
   `jq` edit decrementing `.repos[<repo>].iteration` and `.impl_calls_used`, then retry the gate
   once. A flaky laptop must not eat the user's budget.
 
-If any repo failed, set `active` to just those repos and go back to 4a.
+If any repo failed, set `active` to just those repos and go back to 6a.
 
-### 4d. Review — two reviewers per repo, in parallel
+### 6d. Review — two reviewers per repo, in parallel
 
 Only when every active repo's gate passed. For each repo launch **both** reviewers — send every agent
 for every repo in a **single message**:
@@ -157,7 +214,7 @@ Then merge, per repo:
 $R/scripts/merge-review.sh <RUN_ID> <repo> <iter>
 ```
 
-That writes the canonical `$RUN/review/<repo>.iter<N>.json` which 4e, `brief.sh` and `pr-body.sh`
+That writes the canonical `$RUN/review/<repo>.iter<N>.json` which 6e, `brief.sh` and `pr-body.sh`
 read. It assigns severities and ids, enforces the cap of 5 blocking findings by demoting the overflow
 to advisory, promotes any `escalate: true` quality finding to blocking, and derives `verdict` from the
 final count. Do not second-guess it: the cap and the verdict are its decisions, not yours.
@@ -170,16 +227,16 @@ escalate to the user — **never** treat an unparseable review as an approval.
 A missing or unparseable **quality** review does not fail the merge. It lands as a visible advisory
 placeholder, because a reviewer that cannot block is not worth stopping a run for.
 
-### 4e. Route
+### 6e. Route
 
 ```
 jq '[.findings[]|select(.severity=="blocking")]|length' $RUN/review/<repo>.iter<N>.json
 ```
 
-Greater than zero → back to 4a with those repos. Zero → that repo is done; mark `status: "ready"`.
+Greater than zero → back to 6a with those repos. Zero → that repo is done; mark `status: "ready"`.
 Ignore the reviewer's own `verdict` field; this count is authoritative.
 
-# Step 5 — Pre-flight, both blocking
+# Step 7 — Pre-flight, both blocking
 
 ```
 $R/scripts/contract-check.sh <RUN_ID>
@@ -193,7 +250,7 @@ into the run.
 `verify-gate.sh` catches a tree that changed after its gate passed. If it fails, re-run the gate;
 do not push.
 
-# Step 6 — Commit, push, open PRs
+# Step 8 — Commit, push, open PRs
 
 The implementers commit their own work in small, phased commits as they go, so by now each
 worktree already has a commit series. **Do not squash it and do not amend it** — that history is
@@ -247,7 +304,7 @@ gh pr edit <url> --repo sahmedcse/profitify-<repo> --body-file $RUN/pr/<repo>.md
 with the user: merging is what deploys to production in all three repos, and that decision is
 theirs. Say so in your final report.
 
-# Step 7 — Finish
+# Step 9 — Finish
 
 - `gh pr checks <url> --repo <repo> --watch` per PR, capped at ~10 minutes. Record the outcome.
   This is where the local↔CI divergences surface (golangci-lint 2.4.0 vs v2.11; Node 24 vs 22).

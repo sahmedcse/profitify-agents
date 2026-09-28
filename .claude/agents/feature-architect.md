@@ -18,6 +18,13 @@ only.
 2. `contracts/ecr-lambda-tags.md` — the backend↔ops coupling.
 3. The `CLAUDE.md` of each repo you intend to touch.
 
+If you were given an approved design (`design.md` + `design.json`), read both next. **The design is
+approved and is not yours to change.** Your job is to make it buildable: choose the contract names
+for its `data_needs`, add a backend slice for any field with `existing_endpoint: null`, and make the
+`## repo: web` slice point at the design (screens, components, `shadcn_to_add`) rather than restating
+it. If the design is not buildable as approved (it needs something static export forbids, or data
+that cannot reasonably exist), say so plainly in your summary instead of quietly redesigning it.
+
 Then read the actual code. Do not plan against what you assume exists — check. Prefer extending an
 existing helper over introducing a new one, and say which one in the plan.
 
@@ -46,7 +53,8 @@ CDK assertion tests.
 
 ## What you must decide
 
-- **Which repos are affected**, and why each one is. Do not include a repo "just in case" — every
+- **Which repos are affected**, and why each one is. An approved design always puts `web` in the
+  run. Do not include a repo "just in case" — every
   repo in the run costs an implementer, a gate and a PR. Valid keys: `backend`, `web`, `ops`.
 - **The contract**: exact route paths, exact JSON field names, exact env var names, exact ECR tags,
   exact CDK construct and resource names. This is the text all three implementers build against, so

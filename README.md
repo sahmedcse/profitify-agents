@@ -10,17 +10,21 @@ verification scripts that gate it.
 ## The cycle
 
 ```
-architect → you approve the plan → implement → gate → review → fix → PRs
-                                     └──────── up to 3 iterations ────┘
+designer → you approve the design* → architect → you approve the plan → implement → gate → review → fix → PRs
+                                                                          └──────── up to 3 iterations ────┘
+* only when the feature has user-visible UI
 ```
 
-1. A read-only **architect** agent plans the change, decides which repos it touches, and writes a
-   machine-checkable cross-repo contract.
-2. **You approve the plan.** Nothing is written to any repository before that.
-3. **Implementers** work in isolated git worktrees, one per repo, in parallel.
-4. A **gate script** runs the CI-equivalent checks and decides pass/fail.
-5. A **reviewer** agent returns structured findings; blocking ones route back for a fix.
-6. PRs open, cross-linked and in merge order. You review and merge.
+1. A read-only **designer** agent triages whether the feature touches the UI. If it does, it writes a
+   spec and a static HTML mockup built from the web app's real theme tokens, and you approve that
+   before any planning happens. If it does not, it records why and the run moves straight on.
+2. A read-only **architect** agent plans the change against the approved design, decides which repos
+   it touches, and writes a machine-checkable cross-repo contract.
+3. **You approve the plan.** Nothing is written to any repository before that.
+4. **Implementers** work in isolated git worktrees, one per repo, in parallel.
+5. A **gate script** runs the CI-equivalent checks and decides pass/fail.
+6. Two **reviewers** return structured findings; blocking ones route back for a fix.
+7. PRs open, cross-linked and in merge order. You review and merge.
 
 ## The design principle
 
@@ -47,10 +51,10 @@ An agent claiming "all tests pass" carries no weight.
 ## Layout
 
 ```
-.claude/agents/      architect, three implementers, reviewer
+.claude/agents/      designer, architect, three implementers, two reviewers
 .claude/commands/    /feature and /feature-status
 .claude/hooks/       PreToolUse guard for the main checkouts
-scripts/             gate, worktree, contract-check, verify-gate, iter, brief, pr-body
+scripts/             gate, worktree, contract-check, verify-gate, iter, brief, pr-body, plan-html
 contracts/           cross-repo interfaces that nothing else tests
 ```
 

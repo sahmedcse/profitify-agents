@@ -11,6 +11,8 @@ newest first: run id, status, phase, affected repos, and PR URLs if any.
 With a **run id**, report on that run:
 
 - `run.json`: phase, status, iteration and gate/review/PR state per repo.
+- Design: from `design.json`, whether `ui_required` (and the `reason`), the screens, and
+  `designApproved` from `run.json`. If `design.json` is absent, the designer has not finished yet.
 - For each repo, the latest gate result — status, `first_failed_step`, and the per-step table from
   `jq -r '.steps[] | "\(.name) \(.result)"'`.
 - For each repo, the latest review — counts of blocking and advisory findings, and the blocking ones

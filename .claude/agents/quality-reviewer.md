@@ -45,7 +45,9 @@ In rough order of how much a reader benefits:
    now lies.
 5. **Idiom** — it works but fights the language or the framework. Go: error wrapping, unnecessary
    interfaces, goroutine lifetime. Web: `useEffect` where derived state would do, client component
-   that could stay server. Ops: L1 where an L2 exists.
+   that could stay server, a raw colour or arbitrary value where a `globals.css` theme token exists
+   (`text-profit`/`text-loss` for P&L), a new component that duplicates one in `src/components/`.
+   Ops: L1 where an L2 exists.
 6. **Efficiency** — a real cost, not a micro-opinion: a query in a loop, an unbounded scan, a
    re-render of a large tree, a per-request AWS API call.
 
