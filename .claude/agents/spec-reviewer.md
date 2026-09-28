@@ -65,7 +65,8 @@ so the order you choose decides what the next iteration is asked to fix.
   breaks static export — API routes, middleware, ISR, server actions (criterion 1); no edits to
   `src/components/ui/` (criterion 1). When an approved design exists: every screen in
   `design.json.screens`, every `new`/`modified` component, and the loading, empty and error states
-  `design.md` specifies for each data view exist (a missing one is criterion 1). Visual detail the
+  `design.md` specifies for each data view exist, and every `removed` component or screen is
+  actually gone (a missing or lingering one is criterion 1). Visual detail the
   design left open — spacing, exact class names — is not a deviation.
 - **ops**: IAM scoped with no unjustified wildcard (criterion 3); the ECR tag and `functionName`
   strings against the contract (criterion 2); a changed logical ID or stack name that would replace
