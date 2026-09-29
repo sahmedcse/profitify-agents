@@ -51,6 +51,30 @@ $(cat "$RUN/contract.json")
 \`\`\`
 EOF
 
+# The approved design, verbatim, for web only. Spliced from disk for the same reason as the gate
+# logs below: a paraphrased design is how "empty state" quietly becomes "no empty state".
+DJSON="$RUN/design.json"
+if [ "$REPO" = "web" ] && [ -f "$DJSON" ] && [ "$(jq -r '.ui_required' "$DJSON")" = "true" ]; then
+  cat <<EOF
+
+## The approved design — build to this
+
+The user approved this design before planning. Build every screen, component and state it lists;
+the spec reviewer checks for them. The mockup shows the intended look — Read it, but build with
+the repo's components and Tailwind tokens, not by copying its HTML:
+
+    $RUN/mockup.html
+
+Components (\`new\` = create, \`reuse\` = use as is, \`modified\` = extend):
+
+\`\`\`json
+$(jq '{components, shadcn_to_add}' "$DJSON")
+\`\`\`
+
+$(sed 's/^#/##/' "$RUN/design.md")
+EOF
+fi
+
 PREV=$((ITER - 1))
 if [ "$ITER" -gt 1 ]; then
   echo ""
