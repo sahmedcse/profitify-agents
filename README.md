@@ -16,8 +16,10 @@ designer → you approve the design* → architect → you approve the plan → 
 ```
 
 1. A read-only **designer** agent triages whether the feature touches the UI. If it does, it writes a
-   spec and a static HTML mockup built from the web app's real theme tokens, and you approve that
-   before any planning happens. If it does not, it records why and the run moves straight on.
+   static HTML mockup built from the web app's real theme tokens. You review it in the browser: pin
+   notes on anything, then click **Send notes** (the designer revises) or **Approve design**, with no
+   trip back to the terminal. If the feature has no UI, the designer records why and the run moves
+   straight on.
 2. A read-only **architect** agent plans the change against the approved design, decides which repos
    it touches, and writes a machine-checkable cross-repo contract.
 3. **You approve the plan.** Nothing is written to any repository before that.
@@ -54,7 +56,8 @@ An agent claiming "all tests pass" carries no weight.
 .claude/agents/      designer, architect, three implementers, two reviewers
 .claude/commands/    /feature and /feature-status
 .claude/hooks/       PreToolUse guard for the main checkouts
-scripts/             gate, worktree, contract-check, verify-gate, iter, brief, pr-body, plan-html
+scripts/             gate, worktree, contract-check, verify-gate, iter, brief, pr-body, plan-html,
+                     design-gate (+ annotate.js, design-gate-server.py)
 contracts/           cross-repo interfaces that nothing else tests
 ```
 

@@ -46,7 +46,9 @@ Otherwise start a new run:
 ```
 
 `.phase` maps to steps as follows: `design` → Step 1 (or Step 2 if `$RUN/design.json` already
-exists and `designApproved` is still `null`), `plan` → Step 3, `implement` → Step 5.
+exists and `designApproved` is still `null`), `plan` → Step 3 (or Step 4 if `plan.md` and
+`contract.json` already exist and `planApproved` is not `true`), `implement` → Step 5. A run with
+`status: "paused"` resumes at its gate; read its `paused` note first.
 
 # Step 1 — Designer
 
@@ -71,25 +73,52 @@ Then route on the file, not on the designer's prose:
 
 # Step 2 — Design gate (UI features only)
 
-Render the design as a page and open it:
+The user judges a design by **looking at the mockup**, and decides in the browser, not here.
+
+1. Add the annotation layer to the mockup and start the loopback server **in the background**:
 
 ```
-$R/scripts/plan-html.sh <RUN_ID> --open --doc design
+$R/scripts/design-gate.sh inject <RUN_ID>
+$R/scripts/design-gate.sh serve <RUN_ID>
 ```
 
-It writes `$RUN/design.html` (the spec, linking to the mockup) and opens it. **Exit 3 means pandoc
-is not installed.** The script has then opened `mockup.html` directly instead, so this is not a
-failure: mention `brew install pandoc` once and carry on. Both files are local and are never
-uploaded.
+`serve` prints the base URL (also in `$RUN/gate.url`). Open `<url>mockup.html` — the **mockup
+itself**, not the spec page. `plan-html.sh <RUN_ID> --doc design` still renders `design.html` as a
+secondary reference; re-run it after every revision so it is never stale.
 
-In the terminal keep it short: the screens, which components are new and which are reused, any data
-the designer says does not exist yet, and anything it was **unsure** about. Then use
-**AskUserQuestion**: *approve* / *revise* / *cancel*.
+2. Wait for the decision under **Monitor** (30-minute cap; re-arm on expiry — notes persist):
 
-- **revise** → pass their notes back to the designer, then re-run `plan-html.sh --doc design` so the
-  page matches, and ask again.
-- **cancel** → set `status: "cancelled"`, stop.
-- **approve** → set `designApproved: true`, `phase: "plan"`.
+```
+$R/scripts/design-gate.sh wait <RUN_ID>
+```
+
+3. In the terminal keep it short: what the user is looking at, which components are new and which
+are reused, any data the designer says does not exist yet, and anything it was **unsure** about. Tell
+the user they can pin notes on the mockup and then click **Send notes — revise** or **Approve
+design** in the page's Notes panel; you pick either up without them returning to the terminal. Do
+**not** also ask approve/revise with AskUserQuestion while waiting.
+
+Route on `wait`'s output line, never on anything else:
+
+- `DECISION: revise` → send the notes from `$RUN/notes.json` to the designer **verbatim** (label,
+  pinned text and note — the same no-paraphrase rule as `brief.sh`). Continue the **same** designer
+  agent with SendMessage so it keeps its context, rather than launching a new one. When it returns:
+  validate as in Step 1, re-run `inject` (it archives the old notes and gives the revision a new
+  id), re-render `design.html`, reopen the URL and `wait` again. The server keeps running.
+- `DECISION: approve` → set `designApproved: true`, `phase: "plan"`, and stop the server.
+- `STALE:` → a tab on an older revision decided; it was set aside. Keep waiting.
+- `SERVER DOWN` (exit 1) → restart `serve` once. If it fails again, fall back: the user clicks **Copy
+  notes** in the page (works from a file too) and pastes the notes into the terminal.
+- The user typing in the terminal — for example **cancel** — always wins over the page. On cancel,
+  set `status: "cancelled"`, stop the server, stop.
+
+After approval, the designer's open questions remain. Many are already settled by the approved
+mockup — do not re-ask those. Ask only the ones that change **what this run builds** (slice size,
+deletions, backfills) with one AskUserQuestion, and pass the answers to the architect as scope
+decisions that override the design's own slice list.
+
+If the designer contradicts something in your brief (a font, a logo, a data claim), check the repo
+before accepting either version. It was right once when the brief was wrong.
 
 The design is approved before the architect runs, so a revised design never throws away a plan.
 
@@ -111,27 +140,37 @@ If validation fails, send it back once with the specific problem.
 
 # Step 4 — Plan approval gate
 
-First render the plan as a page and open it — a plan is dense, tabular and full of tradeoffs, and
-the terminal is the worst renderer available for it:
+Render the plan, add the annotation layer, and serve it — the same browser flow as the design gate:
 
 ```
-$R/scripts/plan-html.sh <RUN_ID> --open
+$R/scripts/plan-html.sh <RUN_ID>
+$R/scripts/design-gate.sh inject <RUN_ID> --doc plan
+$R/scripts/design-gate.sh serve <RUN_ID>
 ```
 
-It writes `$RUN/plan.html` and opens it in the browser. **Exit 3 means pandoc is not installed** —
-that is not a failure, fall back to the terminal-only gate below and mention `brew install pandoc`
-once. The page is a local file and is never uploaded; a plan names route paths, table names and ECR
-tags, so none of it leaves the machine.
+Run `serve` in the background (if it is still up from the design gate, reuse it), open
+`<url>plan.html`, and wait under Monitor with `$R/scripts/design-gate.sh wait <RUN_ID>`. **Exit 3
+from `plan-html.sh` means pandoc is not installed** — that is not a failure: fall back to a
+terminal-only gate with AskUserQuestion *approve* / *revise* / *cancel*, and mention
+`brew install pandoc` once. The page is served on loopback only; a plan names route paths, table
+names and ECR tags, so none of it leaves the machine.
 
-Then in the terminal keep it short, because the page carries the detail: the affected repos, the
-merge order, the single biggest risk, and anything the architect said it was **unsure** about. Point
-at the page for the rest. Then use **AskUserQuestion**: *approve* / *revise* / *cancel*.
+In the terminal keep it short, because the page carries the detail: the affected repos, the merge
+order, the single biggest risk, and anything the architect said it was **unsure** about. Tell the
+user to pin notes on the plan and click **Send notes — revise** or **Approve plan** in the page.
 
-- **revise** → pass their notes back to the architect, then re-run `plan-html.sh` so the page
-  matches the revised plan, and ask again. A stale page is worse than no page.
-- **cancel** → set `status: "cancelled"`, stop.
-- **approve** → set `planApproved: true`, `phase: "implement"`, and seed `.repos` with one entry per
-  affected repo: `{path, iteration: 0, gate: null, review: null, pr: null, status: "in_progress"}`.
+- `DECISION: revise` → pass the notes in `$RUN/notes.json` to the architect **verbatim**, then
+  re-run `plan-html.sh` **and** `inject --doc plan` (re-rendering wipes the layer) and `wait` again.
+  A stale page is worse than no page.
+- `DECISION: approve` → stop the server. If the architect raised a decision only the user can make
+  (for example, a production dependency that does not exist yet), ask it now with one
+  AskUserQuestion before going on. Then set `planApproved: true`, `phase: "implement"`, and seed
+  `.repos` with one entry per affected repo:
+  `{path, iteration: 0, gate: null, review: null, pr: null, status: "in_progress"}`.
+- `STALE:` / `SERVER DOWN` / a message typed in the terminal → as in Step 2. On **cancel**, set
+  `status: "cancelled"` and stop. If the user wants to stop for now but keep the plan, set
+  `status: "paused"` with a note of where to resume — `/feature <RUN_ID>` picks it up at this gate
+  without re-running the architect.
 
 A **revise** here goes to the architect only. If the notes are really about the UI, say so and ask
 whether to reopen the design gate (back to Step 2, then re-run the architect) rather than letting
