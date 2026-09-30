@@ -83,6 +83,12 @@ against the commit.
   character for character. The API base URL comes from `NEXT_PUBLIC_API_URL` via
   `src/lib/constants.ts` — do not hardcode it.
 - Tests are vitest + jsdom, under `src/**/__tests__/**/*.test.{ts,tsx}`.
+- **No file over 400 lines** — source or test, one you create or one you touch. When a change would
+  push a file past it, split by subject: extract sub-components or hooks into their own files, and
+  one `*.test.tsx` per component or behavior with shared fixtures in a helper module. Remove
+  duplication while you are there. A split must **never lower coverage**. No coverage provider is
+  installed and you must not add one, so prove it by test count instead: run `pnpm test` before and
+  after, and report both "Tests N passed" totals; the after-count must be at least the before-count.
 
 ## Static export constraints
 
