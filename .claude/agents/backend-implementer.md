@@ -79,6 +79,11 @@ against the commit.
   caller-controlled values.
 - **`log/slog` with the JSON handler, passed as a dependency.** Never a package-level logger.
 - **Table-driven tests.** `testify` is available if it helps, but the codebase mostly uses stdlib.
+- **No file over 400 lines** — source or test, one you create or one you touch. When a change would
+  push a file past it, split by subject in the same package: one `_test.go` per unit or behavior
+  under test, with shared helpers in a small helper file. Remove duplication while you are there (one
+  table instead of three that wrap the same loaders). A split must **never lower coverage**: measure
+  the package with `go test -coverprofile` + `go tool cover -func` before and after, and report both.
 
 ## Test helpers that already exist — use them, don't re-invent
 

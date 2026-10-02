@@ -50,6 +50,10 @@ In rough order of how much a reader benefits:
    Ops: L1 where an L2 exists.
 6. **Efficiency** — a real cost, not a micro-opinion: a query in a loop, an unbounded scan, a
    re-render of a large tree, a per-request AWS API call.
+7. **Size** — a file the change creates or touches is over **400 lines** (source or test). This is
+   a stated repo convention, so it is always worth saying. Check with `wc -l` on every file in
+   `git -C <worktree> diff --name-only origin/main...HEAD`, name the file and its length, and
+   suggest the split by subject — which units or behaviors would each get their own file.
 
 ## What is not worth saying
 
@@ -97,7 +101,8 @@ summary. Do not paste the JSON into your reply.
 }
 ```
 
-`category` is one of `reuse`, `test-quality`, `altitude`, `dead-weight`, `idiom`, `efficiency`.
+`category` is one of `reuse`, `test-quality`, `altitude`, `dead-weight`, `idiom`, `efficiency`,
+`size`.
 
 `required_change` is phrased as a suggestion, not an order — these are advisory. But keep it
 concrete: name the symbol and the alternative. "Consider refactoring" helps nobody.

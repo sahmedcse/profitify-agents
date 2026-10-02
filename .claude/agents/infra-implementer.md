@@ -94,6 +94,10 @@ volume, the S3 site bucket — say so explicitly in `open_questions`.
 - **Unit tests are required** for every construct and stack, using `aws-cdk-lib/assertions`
   (`Template.fromStack(...)`, `hasResourceProperties`, `Match.objectLike`). Assert the properties
   that matter, not just the resource count.
+- **No file over 400 lines** — source or test, one you create or one you touch. When a change would
+  push a file past it, split by subject: one construct per file, one `*.test.ts` per construct or
+  behavior, shared assertion helpers in `test/helpers/`. Remove duplication while you are there. A
+  split must **never lower coverage**: run `npx jest --coverage` before and after and report both.
 
 ## The `.gitignore` trap — read this twice
 
